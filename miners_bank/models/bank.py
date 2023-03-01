@@ -7,7 +7,7 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy import DateTime
-from . import Base
+from ..models import Base
 
 
 class Bank(Base):

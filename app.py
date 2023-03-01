@@ -1,83 +1,31 @@
-import os
-import bcrypt
-from miners_bank import account
-from miners_bank import atm
-from miners_bank import bank
-from miners_bank import currencey
-from miners_bank import Base
+from flask import Flask
+from flask_login import LoginManager
+from sqlalchemy import select
 from miners_bank.database import db_session, init_db, serialize
+from miners_bank.routes.auth import auth_blueprint
+from miners_bank.routes.main import main_blueprint
+from miners_bank.routes.bank import bank_blueprint
+from miners_bank.models.account import User
 
-from flask import Flask, jsonify, render_template, request, url_for, redirect
-from flask_login import login_required
-from sqlalchemy.sql import func
-from sqlalchemy.orm import Session
-
-#bob = account.Account (pin_code = 1066,currencey = currencey.Currencey (value = 100,currencey_type = currencey.CurrenceyType(name = "Samland Dollar",symbol = "$",shortName = "SLD")),user = account.User (name = "Bob"),bank = bank.Bank (name = "Bank of Samland"))
-app = Flask(__name__)
-basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret-key-goes-here'
 init_db()
 
+app.register_blueprint(auth_blueprint)
+app.register_blueprint(bank_blueprint)
+app.register_blueprint(main_blueprint)
 
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    db_session.remove()
+login_manager = LoginManager()
+login_manager.login_view = 'auth.login'
+login_manager.init_app(app)
 
-@app.route('/')
-def index():
-    return ""
-
-@app.route('/banks/all')
-@login_required
-def all_banks():
-    banks = db_session.query(bank.Bank).all()
-    new_banks = []
-    for loop_bank in banks:
-        new_banks.append(serialize(loop_bank))
-    return jsonify(new_banks)
-
-@app.route('/banks/create', methods=('GET', 'POST'))
-@login_required
-def create_bank():
-    if request.method == 'POST':
-        name = request.form['name']
-        new_bank = bank.Bank(name=name)
-        db_session.add(new_bank)
-        db_session.commit()
-
-        return redirect(url_for('index'))
-    return render_template('bank_create.html')
-
-
-@bull.route("/login", methods=["GET", "POST"])
-def login():
-    """For GET requests, display the login form. 
-    For POSTS, login the current user by processing the form.
-
-    """
-    form = LoginForm()
-    if form.validate_on_submit():
-        user = User.query.get(form.email.data)
-        if user:
-            if bcrypt.checkpw(form.password.data, user.password):
-                user.authenticated = True
-                db.session.add(user)
-                db.session.commit()
-                login_user(user, remember=True)
-                return redirect(url_for("bull.reports"))
-    return render_template("login.html", form=form)
-
-@bull.route("/logout", methods=["GET"])
-@login_required
-def logout():
-    """Logout the current user."""
-    user = current_user
-    user.authenticated = False
-    db.session.add(user)
-    db.session.commit()
-    logout_user()
-    return render_template("logout.html")
+@login_manager.user_loader
+def load_user(user_id):
+    # since the user_id is just the primary key of our user table, use it in the query for the user
+    stmt = select(User).where(User.user_id.in_([user_id]))
+    user = db_session.scalars(stmt).first()
+    return user
 
 if __name__ == "__main__":
     app.run()

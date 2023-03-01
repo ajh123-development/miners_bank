@@ -7,36 +7,25 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy import DateTime
-from . import Base
+from flask_login import UserMixin
+from ..models import Base
 
 
-class User(Base):
+class User(UserMixin, Base):
     __tablename__ = "user_users"
     user_id: Mapped[int] = mapped_column(primary_key=True)
     authenticated: Mapped[bool] = mapped_column()
     name: Mapped[str] = mapped_column(String(50))
     password: Mapped[str] = mapped_column(String(500))
+    email: Mapped[str] = mapped_column(String(5000))
     accounts: Mapped[List["Account"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    def __repr__(self) -> str:
-        return f"User(id={self.user_id!r}, name={self.name!r}, accounts={self.accounts!r})"
-
-    def is_active(self) -> bool:
-        """True, as all users are active."""
-        return True
-
-    def get_id(self) -> int:
-        """Return the user's id to satisfy Flask-Login's requirements."""
-        return self.user_id
-
-    def is_authenticated(self) -> bool:
-        """Return True if the user is authenticated."""
+    def is_authenticated(self):
         return self.authenticated
 
-    def is_anonymous(self) -> bool:
-        """False, as anonymous users aren't supported."""
-        return False
+    def get_id(self):
+        return self.user_id
 
 
 class Account(Base):
